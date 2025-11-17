@@ -6,6 +6,11 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		17AF0C502ECA1DD600A67B33 /* SQLiteData in Frameworks */ = {isa = PBXBuildFile; productRef = 17AF0C4F2ECA1DD600A67B33 /* SQLiteData */; };
+		17AF0C532ECBBA5200A67B33 /* WhisperKit in Frameworks */ = {isa = PBXBuildFile; productRef = 17AF0C522ECBBA5200A67B33 /* WhisperKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		17AF0C052ECA1C6F00A67B33 /* SpeechDrop.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SpeechDrop.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +28,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				17AF0C532ECBBA5200A67B33 /* WhisperKit in Frameworks */,
+				17AF0C502ECA1DD600A67B33 /* SQLiteData in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +72,8 @@
 			);
 			name = SpeechDrop;
 			packageProductDependencies = (
+				17AF0C4F2ECA1DD600A67B33 /* SQLiteData */,
+				17AF0C522ECBBA5200A67B33 /* WhisperKit */,
 			);
 			productName = SpeechDrop;
 			productReference = 17AF0C052ECA1C6F00A67B33 /* SpeechDrop.app */;
@@ -94,6 +103,10 @@
 			);
 			mainGroup = 17AF0BFC2ECA1C6F00A67B33;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				17AF0C4E2ECA1DD600A67B33 /* XCRemoteSwiftPackageReference "sqlite-data" */,
+				17AF0C512ECBBA5200A67B33 /* XCRemoteSwiftPackageReference "WhisperKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 17AF0C062ECA1C6F00A67B33 /* Products */;
 			projectDirPath = "";
@@ -274,13 +287,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Debug;
@@ -318,13 +332,14 @@
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx xros xrsimulator";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2,7";
+				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.1;
 			};
 			name = Release;
@@ -351,6 +366,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		17AF0C4E2ECA1DD600A67B33 /* XCRemoteSwiftPackageReference "sqlite-data" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/sqlite-data.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.3.0;
+			};
+		};
+		17AF0C512ECBBA5200A67B33 /* XCRemoteSwiftPackageReference "WhisperKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.15.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		17AF0C4F2ECA1DD600A67B33 /* SQLiteData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17AF0C4E2ECA1DD600A67B33 /* XCRemoteSwiftPackageReference "sqlite-data" */;
+			productName = SQLiteData;
+		};
+		17AF0C522ECBBA5200A67B33 /* WhisperKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 17AF0C512ECBBA5200A67B33 /* XCRemoteSwiftPackageReference "WhisperKit" */;
+			productName = WhisperKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 17AF0BFD2ECA1C6F00A67B33 /* Project object */;
 }

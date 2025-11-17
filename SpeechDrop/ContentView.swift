@@ -1,4 +1,4 @@
-//
+    //
 //  ContentView.swift
 //  SpeechDrop
 //
@@ -6,19 +6,36 @@
 //
 
 import SwiftUI
+import SQLiteData
+import GRDB
+import Dependencies
 
 struct ContentView: View {
+    @State private var viewModel = JournalViewModel()
+    @State private var columnVisibility = NavigationSplitViewVisibility.all
+
     var body: some View {
-        VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            // Left Panel: Sidebar with list of entries
+            SidebarView(viewModel: viewModel)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 400)
+        } content: {
+            // Middle Panel: Detail view with transcription
+            DetailView(entry: $viewModel.selectedEntry, viewModel: viewModel)
+                .navigationSplitViewColumnWidth(min: 400, ideal: 600)
+        } detail: {
+            // Right Panel: Inspector with metadata
+            InspectorView(entry: viewModel.selectedEntry)
+                .navigationSplitViewColumnWidth(min: 200, ideal: 250, max: 300)
         }
-        .padding()
+        .navigationSplitViewStyle(.balanced)
     }
 }
 
 #Preview {
-    ContentView()
+    withDependencies {
+        $0.defaultDatabase = try! DatabaseQueue()
+    } operation: {
+        ContentView()
+    }
 }

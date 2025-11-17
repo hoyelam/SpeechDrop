@@ -1,0 +1,262 @@
+# WhisperKit Integration
+
+WhisperKit is an on-device speech-to-text framework for Apple platforms that provides real-time transcription capabilities without cloud dependencies.
+
+## Installation
+
+Add WhisperKit via Swift Package Manager:
+1. File > Add Package Dependencies in Xcode
+2. URL: `https://github.com/argmaxinc/whisperkit`
+3. Version: 0.9.0 or later
+
+**Requirements:**
+- macOS 14.0+ / iOS 17.0+
+- Xcode 15.0+
+
+## Core Principles
+
+- **On-Device Processing**: All transcription happens locally - no cloud or internet required
+- **Real-Time Streaming**: Process audio as it's being captured for live transcription
+- **Model Flexibility**: Choose model size based on accuracy vs. performance needs
+- **Native Swift**: Fully integrated with Swift concurrency and SwiftUI patterns
+
+## Basic Usage
+
+### Simple Transcription
+
+```swift
+import WhisperKit
+
+// Initialize pipeline
+let whisperKit = try? await WhisperKit()
+
+// Transcribe audio file
+let result = try? await whisperKit?.transcribe(
+    audioPath: "path/to/audio.wav"
+)
+print(result?.text ?? "")
+```
+
+### With Specific Model
+
+```swift
+// Use a specific model (tiny, base, small, medium, large-v3)
+let whisperKit = try? await WhisperKit(
+    WhisperKitConfig(model: "large-v3")
+)
+```
+
+### Model Selection Guidelines
+
+- **tiny**: Fastest, lowest accuracy (~40MB) - good for testing
+- **base**: Good balance for simple use cases (~75MB)
+- **small**: Better accuracy, still fast (~250MB) - recommended for most apps
+- **medium**: High accuracy, slower (~750MB)
+- **large-v3**: Best accuracy, most resource intensive (~1.5GB)
+
+WhisperKit auto-selects the best model for your device if not specified.
+
+## Real-Time Streaming Pattern
+
+For live microphone transcription:
+
+```swift
+@Observable
+class TranscriptionService {
+    private var whisperKit: WhisperKit?
+    var currentTranscription: String = ""
+    var isRecording = false
+
+    func initialize() async throws {
+        whisperKit = try await WhisperKit(
+            WhisperKitConfig(model: "small")
+        )
+    }
+
+    func startTranscription() async throws {
+        isRecording = true
+        // Stream audio and transcribe in real-time
+        // Use WhisperKit's streaming capabilities
+    }
+
+    func stopTranscription() {
+        isRecording = false
+    }
+}
+```
+
+## SwiftUI Integration
+
+### Service as Environment Dependency
+
+```swift
+struct SpeechDropApp: App {
+    @State private var transcriptionService = TranscriptionService()
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+                .environment(transcriptionService)
+                .task {
+                    try? await transcriptionService.initialize()
+                }
+        }
+    }
+}
+```
+
+### View with Transcription
+
+```swift
+struct RecordingView: View {
+    @Environment(TranscriptionService.self) private var service
+    @State private var isRecording = false
+
+    var body: some View {
+        VStack {
+            Text(service.currentTranscription)
+                .padding()
+
+            Button(isRecording ? "Stop" : "Record") {
+                Task {
+                    if isRecording {
+                        service.stopTranscription()
+                    } else {
+                        try? await service.startTranscription()
+                    }
+                    isRecording.toggle()
+                }
+            }
+        }
+    }
+}
+```
+
+## Advanced Features
+
+### Word-Level Timestamps
+
+Request word-level timing information for precise synchronization:
+
+```swift
+let result = try? await whisperKit?.transcribe(
+    audioPath: "audio.wav",
+    timestampGranularities: [.word]
+)
+
+// Access word segments with timestamps
+for segment in result?.segments ?? [] {
+    for word in segment.words ?? [] {
+        print("\(word.text): \(word.start)s - \(word.end)s")
+    }
+}
+```
+
+### Language Detection
+
+```swift
+// Auto-detect language
+let result = try? await whisperKit?.transcribe(
+    audioPath: "audio.wav"
+)
+
+// Or specify language
+let result = try? await whisperKit?.transcribe(
+    audioPath: "audio.wav",
+    language: "en"
+)
+```
+
+### Voice Activity Detection
+
+WhisperKit includes built-in VAD to detect speech segments automatically and skip silence.
+
+## Performance Considerations
+
+### Memory Management
+
+- Models are loaded into memory on initialization
+- Keep one WhisperKit instance throughout app lifecycle
+- Don't repeatedly initialize/deinitialize
+
+### Threading
+
+- WhisperKit uses async/await - no manual thread management needed
+- All transcription happens off the main thread automatically
+- UI updates via @Observable are main-thread safe
+
+### Battery & Performance
+
+- Smaller models = better battery life
+- Real-time transcription is resource intensive
+- Consider providing user control over model selection
+- Monitor device thermal state for long recording sessions
+
+## Error Handling
+
+```swift
+enum TranscriptionError: Error {
+    case modelLoadFailed
+    case audioCaptureFailed
+    case transcriptionFailed
+}
+
+func transcribe(audioPath: String) async throws -> String {
+    guard let whisperKit = whisperKit else {
+        throw TranscriptionError.modelLoadFailed
+    }
+
+    guard let result = try await whisperKit.transcribe(
+        audioPath: audioPath
+    ) else {
+        throw TranscriptionError.transcriptionFailed
+    }
+
+    return result.text
+}
+```
+
+## Best Practices
+
+### DO:
+- Initialize WhisperKit once at app startup
+- Use `.task` modifier for async initialization
+- Choose the smallest model that meets accuracy needs
+- Cache transcription results
+- Provide feedback during model download
+- Test on actual devices, not just simulator
+
+### DON'T:
+- Create multiple WhisperKit instances
+- Block UI thread during transcription
+- Use large models unless necessary
+- Forget to handle model download states
+- Ignore audio permission requirements
+
+## Local Server (Optional)
+
+WhisperKit can run as a local server with OpenAI-compatible API:
+
+```bash
+swift run whisperkit-cli serve --port 8080
+```
+
+This enables integration with existing tools that use OpenAI's transcription API.
+
+## Testing Strategy
+
+- Test with various audio qualities
+- Verify behavior with different model sizes
+- Test error scenarios (no model, corrupted audio)
+- Monitor memory usage during long sessions
+- Test on minimum supported OS version
+
+## Resources
+
+- [Official Repository](https://github.com/argmaxinc/WhisperKit)
+- [Model Repository](https://huggingface.co/argmaxinc/whisperkit-coreml)
+- [Example Apps](https://github.com/argmaxinc/WhisperKit/tree/main/Examples)
+
+## Summary
+
+WhisperKit brings OpenAI's Whisper models to Apple devices with native Swift integration. It's designed to work seamlessly with modern Swift patterns including async/await and SwiftUI's reactive architecture. Choose model size based on your accuracy/performance needs, and leverage the streaming capabilities for real-time transcription experiences.
