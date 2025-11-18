@@ -6,6 +6,7 @@ import Dependencies
 struct SidebarView: View {
     @Bindable var viewModel: JournalViewModel
     @State private var searchText = ""
+    @State private var showingRecordingSheet = false
 
     // Use @FetchAll for reactive database updates
     @FetchAll(
@@ -14,26 +15,63 @@ struct SidebarView: View {
     private var entries: [JournalEntry]
 
     var body: some View {
-        List(selection: $viewModel.selectedEntry) {
-            ForEach(filteredEntries) { entry in
-                NavigationLink(value: entry) {
-                    EntryRowView(entry: entry)
+        VStack(spacing: 0) {
+            // Journal entries list
+            List(selection: $viewModel.selectedEntry) {
+                ForEach(filteredEntries) { entry in
+                    NavigationLink(value: entry) {
+                        EntryRowView(entry: entry)
+                    }
+                }
+                .onDelete { offsets in
+                    deleteEntries(at: offsets)
                 }
             }
-            .onDelete { offsets in
-                try? viewModel.deleteEntries(at: offsets, from: filteredEntries)
+            .navigationTitle("Journal Entries")
+            .searchable(text: $searchText, prompt: "Search entries")
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        createNewEntry()
+                    } label: {
+                        Label("New Entry", systemImage: "plus")
+                    }
+                }
             }
-        }
-        .navigationTitle("Journal Entries")
-        .searchable(text: $searchText, prompt: "Search entries")
-        .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+
+            // Prominent record button at bottom
+            VStack(spacing: 12) {
+                Divider()
+
                 Button {
-                    createNewEntry()
+                    showingRecordingSheet = true
                 } label: {
-                    Label("New Entry", systemImage: "plus")
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 36, height: 36)
+
+                            Circle()
+                                .fill(.white)
+                                .frame(width: 16, height: 16)
+                        }
+
+                        Text("New Recording")
+                            .font(.headline)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
                 }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+                .padding(.horizontal)
+                .padding(.bottom, 12)
             }
+            .background(.background)
+        }
+        .sheet(isPresented: $showingRecordingSheet) {
+            RecordingView(viewModel: RecordingViewModel(journalViewModel: viewModel))
         }
     }
 
@@ -56,6 +94,18 @@ struct SidebarView: View {
         )
         try? viewModel.createEntry(newEntry)
         viewModel.selectedEntry = newEntry
+    }
+
+    private func deleteEntries(at offsets: IndexSet) {
+        for index in offsets {
+            let entry = filteredEntries[index]
+            // Use deleteEntryWithAudio to clean up audio files
+            if entry.audioPath != nil {
+                try? viewModel.deleteEntryWithAudio(entry)
+            } else {
+                try? viewModel.deleteEntry(entry)
+            }
+        }
     }
 }
 

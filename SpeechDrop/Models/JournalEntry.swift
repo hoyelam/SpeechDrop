@@ -4,7 +4,7 @@ import GRDB
 
 @Table
 struct JournalEntry: Sendable, Equatable, Identifiable, Hashable {
-    let id: UUID
+    var id: Int64?
     var title: String
     var transcription: String
     var createdAt: Date
@@ -14,7 +14,7 @@ struct JournalEntry: Sendable, Equatable, Identifiable, Hashable {
     var audioFileSize: Int64
 
     init(
-        id: UUID = UUID(),
+        id: Int64? = nil,
         title: String = "",
         transcription: String = "",
         createdAt: Date = Date(),
@@ -67,8 +67,9 @@ extension JournalEntry: FetchableRecord, MutablePersistableRecord {
         container[Columns.audioFileSize] = audioFileSize
     }
 
+    // Called after successful insertion - sets the auto-generated ID
     nonisolated mutating func didInsert(_ inserted: InsertionSuccess) {
-        // Called after successful insertion
+        id = inserted.rowID
     }
 }
 

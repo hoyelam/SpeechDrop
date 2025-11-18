@@ -2,65 +2,85 @@ import Foundation
 import SQLiteData
 import GRDB
 import Dependencies
+import OSLog
+
+// MARK: - Logger
+nonisolated(unsafe) private let logger = Logger(subsystem: "com.speechdrop", category: "database")
 
 // MARK: - Database Setup
-func appDatabase() throws -> DatabaseQueue {
-    let fileManager = FileManager.default
-    let appSupportURL = try fileManager.url(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask,
-        appropriateFor: nil,
-        create: true
-    )
+func appDatabase() throws -> any DatabaseWriter {
+    @Dependency(\.context) var context
 
-    let bundleID = Bundle.main.bundleIdentifier ?? "com.speechdrop"
-    let appDirectory = appSupportURL.appendingPathComponent(bundleID, isDirectory: true)
+    // Configure database with query tracing
+    var configuration = Configuration()
 
-    try fileManager.createDirectory(at: appDirectory, withIntermediateDirectories: true)
+    // Enable query tracing in DEBUG mode
+    #if DEBUG
+    configuration.prepareDatabase { db in
+        db.trace { event in
+            if case let .statement(statement) = event {
+                logger.debug("\(statement.sql)")
+            }
+        }
+    }
+    #endif
 
-    let databaseURL = appDirectory.appendingPathComponent("speechdrop.db")
-
-    let database = try DatabaseQueue(path: databaseURL.path)
+    // Create database using defaultDatabase helper
+    let database = try defaultDatabase(configuration: configuration)
 
     // Set up database schema with migrations
     var migrator = DatabaseMigrator()
 
-    // Migration v1: Create journalEntries table
-    migrator.registerMigration("createJournalEntries") { db in
-        try db.create(table: JournalEntry.databaseTableName, ifNotExists: true) { t in
-            t.column(JournalEntry.Columns.id.rawValue, .blob).notNull().primaryKey()
-            t.column(JournalEntry.Columns.title.rawValue, .text).notNull()
-            t.column(JournalEntry.Columns.transcription.rawValue, .text).notNull()
-            t.column(JournalEntry.Columns.createdAt.rawValue, .datetime).notNull()
-            t.column(JournalEntry.Columns.updatedAt.rawValue, .datetime).notNull()
-            t.column(JournalEntry.Columns.audioPath.rawValue, .text)
-            t.column(JournalEntry.Columns.duration.rawValue, .double).notNull()
-            t.column(JournalEntry.Columns.audioFileSize.rawValue, .integer).notNull()
-        }
+    #if DEBUG
+    migrator.eraseDatabaseOnSchemaChange = true
+    #endif
 
-        // Add indices for performance
-        try db.create(
-            index: "journalEntries_on_createdAt",
-            on: JournalEntry.databaseTableName,
-            columns: [JournalEntry.Columns.createdAt.rawValue]
+    // Migration v1: Create journalEntries table with auto-increment ID
+    migrator.registerMigration("v1_createJournalEntries") { db in
+        try #sql(
+            """
+            CREATE TABLE "\(raw: JournalEntry.databaseTableName)" (
+                "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+                "title" TEXT NOT NULL DEFAULT '',
+                "transcription" TEXT NOT NULL DEFAULT '',
+                "createdAt" REAL NOT NULL,
+                "updatedAt" REAL NOT NULL,
+                "audioPath" TEXT,
+                "duration" REAL NOT NULL DEFAULT 0,
+                "audioFileSize" INTEGER NOT NULL DEFAULT 0
+            )
+            """
         )
+        .execute(db)
 
-        try db.create(
-            index: "journalEntries_on_title",
-            on: JournalEntry.databaseTableName,
-            columns: [JournalEntry.Columns.title.rawValue]
+        try #sql(
+            """
+            CREATE INDEX "journalEntries_on_createdAt"
+            ON "\(raw: JournalEntry.databaseTableName)"("createdAt")
+            """
         )
+        .execute(db)
+
+        try #sql(
+            """
+            CREATE INDEX "journalEntries_on_title"
+            ON "\(raw: JournalEntry.databaseTableName)"("title")
+            """
+        )
+        .execute(db)
+
+        logger.info("Created journalEntries table with indices")
     }
 
     // Run migrations
     try migrator.migrate(database)
 
-    print("Database initialized at: \(databaseURL.path)")
+    logger.info("Database initialized successfully")
     return database
 }
 
 // MARK: - Sample Data
-func insertSampleData(into database: DatabaseQueue) async throws {
+func insertSampleData(into database: any DatabaseWriter) async throws {
     // Check if data already exists
     let count = try await database.read { db in
         try JournalEntry.fetchCount(db)

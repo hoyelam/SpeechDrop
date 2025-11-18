@@ -60,7 +60,9 @@ struct EntryInspectorView: View {
 
                 // Metadata
                 InspectorSection(title: "Metadata") {
-                    InspectorRow(label: "ID", value: entry.id.uuidString.prefix(8) + "...")
+                    if let id = entry.id {
+                        InspectorRow(label: "ID", value: "#\(id)")
+                    }
                     InspectorRow(label: "Reading Time", value: estimatedReadingTime)
                 }
 
