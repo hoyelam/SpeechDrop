@@ -1,10 +1,12 @@
 import Foundation
 import AVFoundation
 import Dependencies
+import os.log
 
 @MainActor
 @Observable
 final class AudioRecordingService {
+    private let logger = Logger(subsystem: "com.kin-yee.SpeechDrop", category: "AudioRecording")
     enum RecordingState {
         case idle
         case recording
@@ -56,17 +58,25 @@ final class AudioRecordingService {
     // MARK: - Recording Controls
 
     func startRecording() async throws {
+        logger.info("🎙️ Starting recording...")
+
         // Request permission (macOS handles this automatically via first use)
         #if os(iOS)
+        logger.info("📱 iOS platform - requesting microphone permission")
         let permitted = await requestMicrophonePermission()
         guard permitted else {
+            logger.error("❌ Microphone permission denied")
             throw RecordingError.permissionDenied
         }
+        logger.info("✅ Microphone permission granted")
+        #else
+        logger.info("💻 macOS platform - microphone permission requested on first use")
         #endif
 
         // Generate unique filename
         let filename = "recording_\(Date().timeIntervalSince1970).wav"
         let recordingURL = try recordingsDirectory.appendingPathComponent(filename)
+        logger.info("📁 Recording URL: \(recordingURL.path)")
 
         // Configure recording settings for WAV format
         let settings: [String: Any] = [
@@ -78,14 +88,21 @@ final class AudioRecordingService {
             AVLinearPCMIsFloatKey: false,
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
+        logger.info("⚙️ Recording settings: 16kHz, mono, 16-bit PCM")
 
         do {
+            logger.info("🔧 Creating AVAudioRecorder...")
             audioRecorder = try AVAudioRecorder(url: recordingURL, settings: settings)
             audioRecorder?.isMeteringEnabled = true
 
+            logger.info("▶️ Starting AVAudioRecorder...")
             guard audioRecorder?.record() == true else {
+                logger.error("❌ AVAudioRecorder.record() returned false")
                 throw RecordingError.fileCreationFailed
             }
+
+            logger.info("✅ Recording started successfully")
+            logger.info("📊 Initial recording state - isRecording: \(self.audioRecorder?.isRecording ?? false)")
 
             currentRecordingURL = recordingURL
             state = .recording
@@ -93,31 +110,48 @@ final class AudioRecordingService {
 
             // Start metering timer
             startMetering()
+            logger.info("📈 Metering timer started")
 
         } catch {
+            logger.error("❌ Recording failed with error: \(error.localizedDescription)")
             throw RecordingError.recordingFailed(error)
         }
     }
 
     func pauseRecording() {
-        guard state == .recording else { return }
+        logger.info("⏸️ Pausing recording...")
+        guard state == .recording else {
+            logger.warning("⚠️ Cannot pause - current state: \(String(describing: self.state))")
+            return
+        }
         audioRecorder?.pause()
         state = .paused
         stopMetering()
+        logger.info("✅ Recording paused")
     }
 
     func resumeRecording() {
-        guard state == .paused else { return }
+        logger.info("▶️ Resuming recording...")
+        guard state == .paused else {
+            logger.warning("⚠️ Cannot resume - current state: \(String(describing: self.state))")
+            return
+        }
         audioRecorder?.record()
         state = .recording
         startMetering()
+        logger.info("✅ Recording resumed")
     }
 
     func stopRecording() -> RecordingResult? {
+        logger.info("⏹️ Stopping recording...")
         guard let recorder = audioRecorder,
               let url = currentRecordingURL else {
+            logger.error("❌ No active recording to stop")
             return nil
         }
+
+        logger.info("📊 Final recording state - isRecording: \(recorder.isRecording)")
+        logger.info("⏱️ Recording duration: \(recorder.currentTime)s")
 
         recorder.stop()
         stopMetering()
@@ -125,8 +159,17 @@ final class AudioRecordingService {
         let duration = recorder.currentTime
         let fileSize = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
 
+        logger.info("📁 File size: \(fileSize) bytes")
+        logger.info("📍 File path: \(url.path)")
+
+        // Check if file exists
+        let fileExists = FileManager.default.fileExists(atPath: url.path)
+        logger.info("📂 File exists: \(fileExists)")
+
         state = .stopped
         audioRecorder = nil
+
+        logger.info("✅ Recording stopped successfully")
 
         return RecordingResult(
             url: url,
@@ -136,8 +179,10 @@ final class AudioRecordingService {
     }
 
     func cancelRecording() {
+        logger.info("🗑️ Cancelling recording...")
         guard let recorder = audioRecorder,
               let url = currentRecordingURL else {
+            logger.warning("⚠️ No active recording to cancel")
             return
         }
 
@@ -146,11 +191,13 @@ final class AudioRecordingService {
 
         // Delete the recording file
         try? FileManager.default.removeItem(at: url)
+        logger.info("📁 Recording file deleted: \(url.path)")
 
         state = .idle
         audioRecorder = nil
         currentRecordingURL = nil
         recordingDuration = 0
+        logger.info("✅ Recording cancelled")
     }
 
     // MARK: - Audio Level Metering
@@ -181,6 +228,11 @@ final class AudioRecordingService {
         // Convert from dB (-160 to 0) to linear scale (0.0 to 1.0)
         let normalizedPower = pow(10, power / 20)
         audioLevel = normalizedPower
+
+        // Log periodically (every 2 seconds)
+        if Int(self.recordingDuration) % 2 == 0 && self.recordingDuration > 0 {
+            logger.debug("📊 Metering update - duration: \(String(format: "%.1f", self.recordingDuration))s, power: \(String(format: "%.2f", power))dB, normalized: \(String(format: "%.3f", normalizedPower))")
+        }
     }
 
     // MARK: - Permissions

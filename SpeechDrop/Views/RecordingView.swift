@@ -31,8 +31,25 @@ struct RecordingView: View {
 
             Spacer()
 
-            // Processing indicator or waveform
-            if viewModel.isProcessing {
+            // Content based on phase
+            if case .loadingModel = viewModel.phase {
+                VStack(spacing: 20) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .scaleEffect(1.5)
+
+                    Text("Loading speech recognition model...")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
+                    if case .loading = viewModel.transcriptionService.modelState {
+                        Text("This may take a minute on first launch")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .frame(height: 200)
+            } else if viewModel.isProcessing {
                 VStack(spacing: 20) {
                     ProgressView()
                         .controlSize(.large)
@@ -125,6 +142,10 @@ struct RecordingView: View {
             Text(errorMessage)
         }
         .task {
+            // First ensure the model is loaded
+            await viewModel.ensureModelLoaded()
+
+            // Then start recording if we're ready
             if viewModel.canRecord {
                 await viewModel.startRecording()
             }
@@ -133,6 +154,8 @@ struct RecordingView: View {
 
     private var statusText: String {
         switch viewModel.phase {
+        case .loadingModel:
+            return "Loading model..."
         case .ready:
             return "Ready to record"
         case .recording:
